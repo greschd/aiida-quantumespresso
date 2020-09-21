@@ -69,17 +69,38 @@ def test_handle_electronic_convergence_not_reached(generate_workchain_pw):
 
 
 def test_handle_known_unrecoverable_failure(generate_workchain_pw):
-    """Test `PwBaseWorkChain.handle_known_unrecoverable_failure`."""
+    """Test `PwBaseWorkChain.handle_cholesky_error` when `ndiag` is already `1`."""
     process = generate_workchain_pw(exit_code=PwCalculation.exit_codes.ERROR_COMPUTING_CHOLESKY)
     process.setup()
 
-    result = process.handle_known_unrecoverable_failure(process.ctx.children[-1])
+    process.ctx.inputs.parallelization = {'ndiag': 1}
+    result = process.handle_cholesky_error(process.ctx.children[-1])
     assert isinstance(result, ProcessHandlerReport)
     assert result.do_break
     assert result.exit_code == PwBaseWorkChain.exit_codes.ERROR_KNOWN_UNRECOVERABLE_FAILURE
 
     result = process.inspect_process()
     assert result == PwBaseWorkChain.exit_codes.ERROR_KNOWN_UNRECOVERABLE_FAILURE
+
+
+def test_handle_cholesky(generate_workchain_pw):
+    """Test `PwBaseWorkChain.handle_cholesky_error`."""
+    process = generate_workchain_pw(exit_code=PwCalculation.exit_codes.ERROR_COMPUTING_CHOLESKY)
+    process.setup()
+
+    result = process.handle_cholesky_error(process.ctx.children[-1])
+    assert process.ctx.inputs.parallelization == {'ndiag': 1}
+    assert isinstance(result, ProcessHandlerReport)
+
+    assert result.do_break
+    assert result.exit_code.status == 0
+    assert process.ctx.restart_calc is None
+
+    # Because the `inspect_process` runs the handler again, we need to
+    # set `ndiag` back to a value `!= 1`.
+    process.ctx.inputs.parallelization['ndiag'] = 2
+    result = process.inspect_process()
+    assert result.status == 0
 
 
 def test_handle_vcrelax_converged_except_final_scf(generate_workchain_pw):

@@ -480,16 +480,15 @@ class PwBaseWorkChain(ProtocolMixin, BaseRestartWorkChain):
             self.report_error_handled(calculation, 'unrecoverable error, aborting...')
             return ProcessHandlerReport(True, self.exit_codes.ERROR_UNRECOVERABLE_FAILURE)
 
-    @process_handler(priority=590, exit_codes=[
-        PwCalculation.exit_codes.ERROR_COMPUTING_CHOLESKY,
-    ])
-    def handle_known_unrecoverable_failure(self, calculation):
-        """Handle calculations with an exit status that correspond to a known failure mode that are unrecoverable.
+    # @process_handler(priority=590, exit_codes=[
+    # ])
+    # def handle_known_unrecoverable_failure(self, calculation):
+    #     """Handle calculations with an exit status that correspond to a known failure mode that are unrecoverable.
 
-        These failures may always be unrecoverable or at some point a handler may be devised.
-        """
-        self.report_error_handled(calculation, 'known unrecoverable failure detected, aborting...')
-        return ProcessHandlerReport(True, self.exit_codes.ERROR_KNOWN_UNRECOVERABLE_FAILURE)
+    #     These failures may always be unrecoverable or at some point a handler may be devised.
+    #     """
+    #     self.report_error_handled(calculation, 'known unrecoverable failure detected, aborting...')
+    #     return ProcessHandlerReport(True, self.exit_codes.ERROR_KNOWN_UNRECOVERABLE_FAILURE)
 
     @process_handler(priority=580, exit_codes=[
         PwCalculation.exit_codes.ERROR_OUT_OF_WALLTIME,
@@ -568,6 +567,23 @@ class PwBaseWorkChain(ProtocolMixin, BaseRestartWorkChain):
         action = 'no electronic convergence but clean shutdown: reduced beta mixing from {} to {} restarting from ' \
                  'scratch but using output structure.'.format(mixing_beta, mixing_beta_new)
         self.report_error_handled(calculation, action)
+        return ProcessHandlerReport(True)
+
+    @process_handler(priority=540, exit_codes=[
+        PwCalculation.exit_codes.ERROR_COMPUTING_CHOLESKY,
+    ])
+    def handle_cholesky_error(self, calculation):
+        """Handle the 'problem computing cholesky' error."""
+        self.ctx.inputs.setdefault('parallelization', {})
+
+        # If the 'ndiag' was already 1, we can not handle the failure.
+        if self.ctx.inputs.parallelization.get('ndiag') == 1:
+            self.report_error_handled(calculation, 'known unrecoverable failure detected, aborting...')
+            return ProcessHandlerReport(True, self.exit_codes.ERROR_KNOWN_UNRECOVERABLE_FAILURE)
+
+        self.ctx.inputs.parallelization['ndiag'] = 1
+
+        self.report_error_handled(calculation, "disabling 'ndiag' parallelization")
         return ProcessHandlerReport(True)
 
     @process_handler(priority=410, exit_codes=[
