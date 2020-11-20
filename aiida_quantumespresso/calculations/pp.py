@@ -185,19 +185,29 @@ class PpCalculation(CalcJob):
 
         remote_copy_list = []
         local_copy_list = []
+        remote_symlink_list = []
 
         # Copy remote output dir
+        symlink = settings.pop('PARENT_FOLDER_SYMLINK', False)
         parent_calc_folder = self.inputs.get('parent_folder', None)
         if isinstance(parent_calc_folder, orm.RemoteData):
-            remote_copy_list.append((
+            if symlink:
+                parent_list = remote_symlink_list
+            else:
+                parent_list = remote_copy_list
+            parent_list.append((
                 parent_calc_folder.computer.uuid,
                 os.path.join(parent_calc_folder.get_remote_path(), self._INPUT_SUBFOLDER), self._OUTPUT_SUBFOLDER
             ))
-            remote_copy_list.append((
+            parent_list.append((
                 parent_calc_folder.computer.uuid,
                 os.path.join(parent_calc_folder.get_remote_path(), self._PSEUDO_SUBFOLDER), self._PSEUDO_SUBFOLDER
             ))
         elif isinstance(parent_calc_folder, orm.FolderData):
+            if symlink:
+                raise exceptions.InputValidationError(
+                    "Cannot set `settings['PARENT_FOLDER_SYMLINK']` to `True` when using a local parent folder."
+                )
             for filename in parent_calc_folder.list_object_names():
                 local_copy_list.append(
                     (parent_calc_folder.uuid, filename, os.path.join(self._OUTPUT_SUBFOLDER, filename))
@@ -216,6 +226,7 @@ class PpCalculation(CalcJob):
         calcinfo.codes_info = [codeinfo]
         calcinfo.local_copy_list = local_copy_list
         calcinfo.remote_copy_list = remote_copy_list
+        calcinfo.remote_symlink_list = remote_symlink_list
 
         # Retrieve by default the output file
         calcinfo.retrieve_list = [self.inputs.metadata.options.output_filename]

@@ -61,6 +61,19 @@ def test_pp_default(fixture_sandbox, generate_calc_job, generate_inputs, file_re
     file_regression.check(input_written, encoding='utf-8', extension='.in')
 
 
+def test_pp_symlink(fixture_sandbox, generate_calc_job, generate_inputs):
+    """Test a `PpCalculation` using `parent_folder_symlink`."""
+    entry_point_name = 'quantumespresso.pp'
+    inputs = generate_inputs(settings={'parent_folder_symlink': True})
+
+    calc_info = generate_calc_job(fixture_sandbox, entry_point_name, inputs)
+
+    # Check the `remote_copy_list` and `remote_symlink_list`.
+    assert isinstance(calc_info, datastructures.CalcInfo)
+    assert not calc_info.remote_copy_list
+    assert len(calc_info.remote_symlink_list) == 2
+
+
 def test_pp_keep_plot_file(fixture_sandbox, generate_calc_job, generate_inputs):
     """Test a `PpCalculation` where we want to retrieve the plot file."""
     entry_point_name = 'quantumespresso.pp'
